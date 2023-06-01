@@ -5,11 +5,12 @@ const taskDisplay = document.getElementById('taskDisplay');
 
 // Define an array to store tasks
 const taskList = [];
+let editingIndex = -1; // Track the index of the task being edited
 
 // Function to generate a hash 
 function generateHash(string) {
-    return sha256(string);
-  }
+  return sha256(string);
+}
 
 // Function to add task to the list
 function addTask() {
@@ -32,6 +33,9 @@ function addTask() {
   // Clear the task input field
   taskInput.value = '';
 
+  // Reset the editing index
+  editingIndex = -1;
+
   // Update the task display
   updateTaskDisplay();
 }
@@ -40,6 +44,11 @@ function addTask() {
 function deleteTask(index) {
   // Remove the task from the taskList array
   taskList.splice(index, 1);
+
+  // If the deleted task was the one being edited, reset the editing index
+  if (editingIndex === index) {
+    editingIndex = -1;
+  }
 
   // Update the task display
   updateTaskDisplay();
@@ -56,6 +65,9 @@ function updateTaskStatus(index, isChecked) {
 
 // Function to handle task title edit
 function editTask(index) {
+  // Set the editing index to the current task index
+  editingIndex = index;
+
   // Find the task with the given index
   const task = taskList[index];
 
@@ -78,6 +90,7 @@ function editTask(index) {
       const updatedTaskTitle = taskTitleInput.value.trim();
       if (updatedTaskTitle !== '') {
         task.title = updatedTaskTitle;
+        editingIndex = -1; // Reset the editing index
         updateTaskDisplay();
       }
     }
@@ -85,7 +98,11 @@ function editTask(index) {
 
   // Revert back to displaying the task title span when the input loses focus
   taskTitleInput.addEventListener('blur', () => {
-    taskTitleSpan.textContent = task.title;
+    if (editingIndex === index) {
+      // If the editing index is still the same, revert back to displaying the task title
+      taskTitleSpan.textContent = task.title;
+      editingIndex = -1; // Reset the editing index
+    }
   });
 }
 
@@ -100,6 +117,11 @@ function updateTaskDisplay() {
 
     // Create a new list item for the task
     const listItem = document.createElement('li');
+
+    // Highlight the task item if it is being edited
+    if (i === editingIndex) {
+      listItem.classList.add('highlight'); // Add a CSS class for highlighting
+    }
 
     // Create a checkbox for the task
     const checkbox = document.createElement('input');
@@ -145,5 +167,3 @@ taskInput.addEventListener('keydown', handleKeyDown);
 
 // Update the initial task display
 updateTaskDisplay();
-
-
