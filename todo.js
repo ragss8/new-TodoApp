@@ -1,136 +1,246 @@
-//the task management functionality is encapsulated within the TaskManager class, providing a cleaner and more structured approach to managing tasks. 
-//The DOM selection is done using querySelector, and the code is organized into separate functions for different tasks.
+// Get references
+const taskInput = document.getElementById('taskInput');
+const addButton = document.getElementById('addButton');
+const taskDisplay = document.getElementById('taskDisplay');
+const filterButtons = document.querySelectorAll('.filterButton');
 
-// Define an object to manage tasks
-class TaskManager {
-  constructor() {
-    this.taskList = [];
-    this.editingIndex = -1;
+// Define an array to store tasks
+const taskList = [];
+
+// Initialize editingIndex
+let editingIndex = -1;
+
+// Function to generate a hash
+function generateHash(string) {
+  return sha256(string);
+}
+
+// Function to add task to the list
+function addTask() {
+  // Retrieve the task input value
+  const taskTitle = taskInput.value.trim();
+
+  // Generate a hash ID for the task
+  const taskId = generateHash(taskTitle);
+
+  // Create a new task object
+  const task = {
+    id: taskId,
+    status: 'pending',
+    title: taskTitle
+  };
+
+  // Push the task object to the task list
+  taskList.push(task);
+
+  // Clear the task input field
+  taskInput.value = '';
+
+  // Update the task display
+  updateTaskDisplay();
+}
+
+// Function to delete a task from the task list
+function deleteTask(index) {
+  // Remove the task from the taskList array
+  taskList.splice(index, 1);
+
+  // Update the task display
+  updateTaskDisplay();
+}
+
+// Function to update the status of a task
+function updateTaskStatus(index, isChecked) {
+  // Update the task status based on the checkbox state
+  taskList[index].status = isChecked ? 'completed' : 'pending';
+
+  // Update the task display
+  updateTaskDisplay();
+}
+
+// Function to handle task title edit
+function editTask(index) {
+  // Check if there is already a task being edited
+  if (editingIndex !== -1) {
+    // Display a message or perform any desired action for the existing editing task
+    console.log(`Finish editing task ${editingIndex} first.`);
+    return;
   }
 
-  generateHash(string) {
-    return sha256(string);
-  }
-//function to add a task
-  addTask(taskTitle) {
-    const trimmedTitle = taskTitle.trim();
-    if (trimmedTitle === '') {
-      return;
-    }
+  // Find the task with the given index
+  const task = taskList[index];
 
-    const taskId = this.generateHash(trimmedTitle);
-    const task = {
-      id: taskId,
-      status: 'pending',
-      title: trimmedTitle,
-    };
+  // Create an input element for editing the task title
+  const taskTitleInput = document.createElement('input');
+  taskTitleInput.type = 'text';
+  taskTitleInput.value = task.title;
 
-    this.taskList.push(task);
-    this.updateTaskDisplay();
-  }
-//function to delete a task
-  deleteTask(index) {
-    this.taskList.splice(index, 1);
-    if (this.editingIndex === index) {
-      this.editingIndex = -1;
-    }
-    this.updateTaskDisplay();
-  }
-//function to update the task on being checked
-  updateTaskStatus(index, isChecked) {
-    this.taskList[index].status = isChecked ? 'completed' : 'pending';
-    this.updateTaskDisplay();
-  }
-//function to edit the task based on the index criterion 
-  editTask(index) {
-    this.editingIndex = index;
-    const task = this.taskList[index];
+  // Append the input element to the task title span
+  const taskTitleSpan = document.getElementById(`taskTitle_${index}`);
+  taskTitleSpan.classList.add('editing'); // Add the 'editing' class to apply styles
+  taskTitleSpan.textContent = ''; // Clear the task title span
+  taskTitleSpan.appendChild(taskTitleInput);
 
-    const taskTitleSpan = document.querySelector(`#taskTitle_${index}`);
-    taskTitleSpan.innerHTML = `<input type="text" value="${task.title}" />`;
+  // Focus on the task title input
+  taskTitleInput.focus();
 
-    const taskTitleInput = taskTitleSpan.querySelector('input');
-    taskTitleInput.focus();
+  // Update the editingIndex
+  editingIndex = index;
 
-    taskTitleInput.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        const updatedTaskTitle = taskTitleInput.value.trim();
-        if (updatedTaskTitle !== '') {
-          task.title = updatedTaskTitle;
-          this.editingIndex = -1;
-          this.updateTaskDisplay();
-        }
+  // Update the task title when the Enter key is pressed
+  taskTitleInput.addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+      const updatedTaskTitle = taskTitleInput.value.trim();
+      if (updatedTaskTitle !== '') {
+        task.title = updatedTaskTitle;
+        taskTitleSpan.textContent = `Task ID: ${index}, Status: ${task.status}, Title: ${task.title}`;
       }
-    });
-    // Revert back to displaying the task title span when the input loses focus
-    taskTitleInput.addEventListener('blur', () => {
-      if (this.editingIndex === index) {
-        taskTitleSpan.textContent = task.title;
-        this.editingIndex = -1;
-      }
-    });
-  }
-// this is the function to render the changes on the html page
-  updateTaskDisplay() {
-    const taskDisplay = document.querySelector('#taskDisplay');
-    //clear the current task display
-    taskDisplay.innerHTML = '';
+      // Revert back to displaying the task title span
+      taskTitleSpan.classList.remove('editing'); // Remove the 'editing' class
+      editingIndex = -1; // Reset the editingIndex
+      updateTaskDisplay(); // Update the task display
+    }
+  });
 
-    for (let i = 0; i < this.taskList.length; i++) {
-      const task = this.taskList[i];
+  // Revert back to displaying the task title span when the input loses focus
+  taskTitleInput.addEventListener('blur', () => {
+    taskTitleSpan.textContent = `Task ID: ${index}, Status: ${task.status}, Title: ${task.title}`;
+    taskTitleSpan.classList.remove('editing'); // Remove the 'editing' class
+
+    // Reset the editingIndex
+    editingIndex = -1;
+  });
+}
+
+// Function to filter the tasks based on the selected filter option
+function filterTasks(filterOption) {
+  // Clear the current task display
+  taskDisplay.innerHTML = '';
+
+  // Loop through the task list and create the task items based on the filter option
+  for (let i = 0; i < taskList.length; i++) {
+    const task = taskList[i];
+
+    // Apply the filter based on the selected filter option
+    if (
+      (filterOption === 'active' && task.status === 'pending') ||
+      (filterOption === 'completed' && task.status === 'completed') ||
+      filterOption === 'all'
+    ) {
+      // Create a new list item for the task
       const listItem = document.createElement('li');
 
-      if (i === this.editingIndex) {
-        listItem.classList.add('highlight');
-      }
-
+      // Create a checkbox for the task
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
-      checkbox.checked = task.status === 'completed';
-      checkbox.addEventListener('change', () =>
-        this.updateTaskStatus(i, checkbox.checked)
-      );
+      checkbox.checked = task.status === 'completed'; // Set the checked state based on the task status
+      checkbox.addEventListener('change', () => updateTaskStatus(i, checkbox.checked)); // Call updateTaskStatus function when checked state changes
 
+      // Append the checkbox to the task item
       listItem.appendChild(checkbox);
 
+      // Create a span element for the task title
       const taskTitleSpan = document.createElement('span');
       taskTitleSpan.id = `taskTitle_${i}`;
       taskTitleSpan.textContent = `Task ID: ${i}, Status: ${task.status}, Title: ${task.title}`;
-      taskTitleSpan.addEventListener('click', () => this.editTask(i));
 
+      // Add click event listener to the task title span
+      taskTitleSpan.addEventListener('click', () => {
+        if (editingIndex === i) {
+          editTask(i);
+          updateTaskDisplay();
+        } else {
+          editTask(i);
+        }
+      });
+
+      // Append the task title span to the task item
       listItem.appendChild(taskTitleSpan);
 
+      // Create a delete button for the task
       const deleteButton = document.createElement('button');
       deleteButton.textContent = 'Delete';
-      deleteButton.addEventListener('click', () => this.deleteTask(i));
+      deleteButton.addEventListener('click', () => deleteTask(i)); // Call deleteTask function when clicked
 
+      // Append the delete button to the task item
       listItem.appendChild(deleteButton);
+
+      // Append the task item to the task display
       taskDisplay.appendChild(listItem);
     }
   }
 }
 
-// Create a new instance of TaskManager
-const taskManager = new TaskManager();
+// Function to update the task display
+function updateTaskDisplay() {
+  // Clear the current task display
+  taskDisplay.innerHTML = '';
 
-// Get DOM elements using querySelector
-const taskInput = document.querySelector('#taskInput');
-const addButton = document.querySelector('#addButton');
+  // Loop through the task list and create the task items
+  for (let i = 0; i < taskList.length; i++) {
+    const task = taskList[i];
 
+    // Create a new list item for the task
+    const listItem = document.createElement('li');
+
+    // Create a checkbox for the task
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = task.status === 'completed'; // Set the checked state based on the task status
+    checkbox.addEventListener('change', () => updateTaskStatus(i, checkbox.checked)); // Call updateTaskStatus function when checked state changes
+
+    // Append the checkbox to the task item
+    listItem.appendChild(checkbox);
+
+    // Create a span element for the task title
+    const taskTitleSpan = document.createElement('span');
+    taskTitleSpan.id = `taskTitle_${i}`;
+    taskTitleSpan.textContent = `Task ID: ${i}, Title: ${task.title}, Status: ${task.status}`;
+
+    // Add click event listener to the task title span
+    taskTitleSpan.addEventListener('click', () => {
+      if (editingIndex === i) {
+        editTask(i);
+        updateTaskDisplay();
+      } else {
+        editTask(i);
+      }
+    });
+
+    // Append the task title span to the task item
+    listItem.appendChild(taskTitleSpan);
+
+    // Create a delete button for the task
+    const deleteButton = document.createElement('button');
+    deleteButton.textContent = 'Delete';
+    deleteButton.addEventListener('click', () => deleteTask(i)); // Call deleteTask function when clicked
+
+    // Append the delete button to the task item
+    listItem.appendChild(deleteButton);
+
+    // Append the task item to the task display
+    taskDisplay.appendChild(listItem);
+  }
+}
+
+// Function to handle keydown event
 function handleKeyDown(event) {
   if (event.key === 'Enter') {
-    taskManager.addTask(taskInput.value);
-    taskInput.value = '';
+    addTask();
   }
 }
 
 // Add event listeners
-addButton.addEventListener('click', () => {
-  taskManager.addTask(taskInput.value);
-  taskInput.value = '';
-});
-
+addButton.addEventListener('click', addTask);
 taskInput.addEventListener('keydown', handleKeyDown);
 
+// Add click event listeners to filter buttons
+filterButtons.forEach(button => {
+  button.addEventListener('click', () => {
+    const filterOption = button.dataset.filter;
+    filterTasks(filterOption);
+  });
+});
+
 // Update the initial task display
-taskManager.updateTaskDisplay();
+updateTaskDisplay();
